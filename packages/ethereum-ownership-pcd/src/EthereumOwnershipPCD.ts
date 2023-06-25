@@ -121,10 +121,11 @@ export async function prove(
   const deserializedIdentity = await SemaphoreIdentityPCDPackage.deserialize(
     args.identity.value.pcd
   );
+  const message = deserializedIdentity.claim.identity.commitment.toString();
 
   const address = ethers.utils.getAddress(
     ethers.utils.verifyMessage(
-      deserializedIdentity.claim.identity.commitment.toString(),
+      message,
       args.ethereumSignatureOfCommitment.value
     )
   );
