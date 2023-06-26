@@ -35,8 +35,10 @@ export function SemaphoreIdentityCardBody({ pcd }: { pcd: EthereumGroupPCD }) {
       <HiddenText text={identityCommitment} />
       <Spacer h={8} />
 
-      <FieldLabel>Ethereum Address</FieldLabel>
-      <TextContainer>{pcd.claim.ethereumAddress}</TextContainer>
+      <FieldLabel>Merkle Root</FieldLabel>
+      <TextContainer>
+        {pcd.claim.publicInput.circuitPubInput.merkleRoot.toString(16)}
+      </TextContainer>
     </Container>
   );
 }
