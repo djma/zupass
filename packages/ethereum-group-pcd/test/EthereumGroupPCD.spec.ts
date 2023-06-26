@@ -13,6 +13,7 @@ import { ethers } from "ethers";
 import "mocha";
 import * as path from "path";
 import {
+  EthereumGroupPCD,
   EthereumGroupPCDPackage,
   GroupType,
   pubkeyMembershipConfig,
@@ -81,6 +82,37 @@ async function groupProof(
   );
 }
 
+async function happyPathEthGroupPCD() {
+  const identity = await SemaphoreIdentityPCDPackage.prove({
+    identity: new Identity(),
+  });
+  const serializedIdentity = await SemaphoreIdentityPCDPackage.serialize(
+    identity
+  );
+  const wallet = ethers.Wallet.createRandom(null);
+  const { proof, publicInput } = await groupProof(identity, wallet);
+
+  const ethGroupPCD = await EthereumGroupPCDPackage.prove({
+    ethereumGroupProof: {
+      argumentType: ArgumentTypeName.String,
+      value: Buffer.from(proof).toString("hex"),
+    },
+    identity: {
+      argumentType: ArgumentTypeName.PCD,
+      pcdType: SemaphoreIdentityPCDTypeName,
+      value: serializedIdentity,
+    },
+    publicInput: publicInput,
+    groupType: {
+      argumentType: ArgumentTypeName.String,
+      value: GroupType.PUBLICKEY,
+    },
+  });
+
+  return ethGroupPCD;
+}
+let ethGroupPCD: EthereumGroupPCD;
+
 describe("Ethereum Group PCD", function () {
   this.timeout(30 * 1000);
 
@@ -89,36 +121,34 @@ describe("Ethereum Group PCD", function () {
       zkeyFilePath,
       wasmFilePath,
     });
+    ethGroupPCD = await happyPathEthGroupPCD();
   });
 
   it("should work", async function () {
-    const identity = await SemaphoreIdentityPCDPackage.prove({
-      identity: new Identity(),
-    });
-    const serializedIdentity = await SemaphoreIdentityPCDPackage.serialize(
-      identity
+    await EthereumGroupPCDPackage.verify(ethGroupPCD);
+  });
+
+  it("serializes", async function () {
+    const newEthGroupPCD = await EthereumGroupPCDPackage.deserialize(
+      (
+        await EthereumGroupPCDPackage.serialize(ethGroupPCD)
+      ).pcd
     );
-    const wallet = ethers.Wallet.createRandom(null);
-    const { proof, publicInput } = await groupProof(identity, wallet);
+    EthereumGroupPCDPackage.verify(newEthGroupPCD);
+  });
 
-    const ethereumPCD = await EthereumGroupPCDPackage.prove({
-      ethereumGroupProof: {
-        argumentType: ArgumentTypeName.String,
-        value: Buffer.from(proof).toString("hex"),
-      },
-      identity: {
-        argumentType: ArgumentTypeName.PCD,
-        pcdType: SemaphoreIdentityPCDTypeName,
-        value: serializedIdentity,
-      },
-      publicInput: publicInput,
-      groupType: {
-        argumentType: ArgumentTypeName.String,
-        value: GroupType.PUBLICKEY,
-      },
-    });
+  it("should not verify tampered inputs", async function () {
+    const newEthGroupPCD = await EthereumGroupPCDPackage.deserialize(
+      (
+        await EthereumGroupPCDPackage.serialize(ethGroupPCD)
+      ).pcd
+    );
+    EthereumGroupPCDPackage.verify(newEthGroupPCD);
 
-    await EthereumGroupPCDPackage.verify(ethereumPCD);
+    newEthGroupPCD.claim.publicInput.circuitPubInput.merkleRoot =
+      newEthGroupPCD.claim.publicInput.circuitPubInput.merkleRoot + BigInt(1);
+
+    assert.rejects(() => EthereumGroupPCDPackage.verify(newEthGroupPCD));
   });
 
   it("should not be able create a PCD with a different identity", async function () {
