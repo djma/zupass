@@ -4,7 +4,6 @@ import {
   ProveRequest,
 } from "@pcd/passport-interface";
 import { ArgsOf, PCDOf, PCDPackage, SerializedPCD } from "@pcd/pcd-types";
-import { useRollbar } from "@rollbar/react";
 import { useCallback, useContext, useState } from "react";
 import styled from "styled-components";
 import { requestPendingPCD } from "../../../src/api/requestPendingPCD";
@@ -33,7 +32,7 @@ export function GenericProveSection<T extends PCDPackage = PCDPackage>({
     pendingPCD: PendingPCD | undefined
   ) => void;
 }) {
-  const rollbar = useRollbar();
+  const rollbar = undefined; // useRollbar();
   const [state] = useContext(DispatchContext);
   const [args, setArgs] = useState(JSON.parse(JSON.stringify(initialArgs)));
   const [error, setError] = useState<Error | undefined>();

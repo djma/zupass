@@ -1,3 +1,4 @@
+import { EthereumGroupPCDPackage } from "@pcd/ethereum-group-pcd";
 import { EthereumOwnershipPCDPackage } from "@pcd/ethereum-ownership-pcd";
 import { HaLoNoncePCDPackage } from "@pcd/halo-nonce-pcd";
 import { PCDPackage } from "@pcd/pcd-types";
@@ -38,6 +39,11 @@ async function loadPackages(): Promise<PCDPackage[]> {
     zkeyFilePath: "/semaphore-artifacts/16.zkey",
   });
 
+  await EthereumGroupPCDPackage.init({
+    wasmFilePath: "/semaphore-artifacts/16.wasm",
+    zkeyFilePath: "/semaphore-artifacts/16.zkey",
+  });
+
   await RLNPCDPackage.init({
     wasmFilePath: SERVER_STATIC_URL + "rln-artifacts/16.wasm",
     zkeyFilePath: SERVER_STATIC_URL + "rln-artifacts/16.zkey",
@@ -48,6 +54,7 @@ async function loadPackages(): Promise<PCDPackage[]> {
     SemaphoreIdentityPCDPackage,
     SemaphoreSignaturePCDPackage,
     EthereumOwnershipPCDPackage,
+    EthereumGroupPCDPackage,
     JubJubSignaturePCDPackage,
     RLNPCDPackage,
     WebAuthnPCDPackage,

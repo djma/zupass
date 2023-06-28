@@ -16,11 +16,14 @@ import {
   SemaphoreSignaturePCD,
   SemaphoreSignaturePCDPackage,
 } from "@pcd/semaphore-signature-pcd";
-import { MembershipVerifier, PublicInput } from "@personaelabs/spartan-ecdsa";
+import {
+  MembershipVerifier,
+  ProverConfig,
+  PublicInput,
+} from "@personaelabs/spartan-ecdsa";
 import { ethers } from "ethers";
 import { sha256 } from "js-sha256";
 import JSONBig from "json-bigint";
-import * as path from "path";
 import { v4 as uuid } from "uuid";
 import { SemaphoreIdentityCardBody as EthereumGroupCardBody } from "./CardBody";
 
@@ -108,15 +111,38 @@ export async function init(args: EthereumGroupPCDInitArgs): Promise<void> {
   return SemaphoreSignaturePCDPackage.init!(args);
 }
 
-export const addrMembershipConfig = {
-  circuit: path.join(__dirname, "../artifacts/addr_membership.circuit"),
-  witnessGenWasm: path.join(__dirname, "../artifacts/addr_membership.wasm"),
-};
+const isNode =
+  typeof process !== "undefined" &&
+  process.versions != null &&
+  process.versions.node != null;
 
-export const pubkeyMembershipConfig = {
-  circuit: path.join(__dirname, "../artifacts/pubkey_membership.circuit"),
-  witnessGenWasm: path.join(__dirname, "../artifacts/pubkey_membership.wasm"),
-};
+export let addrMembershipConfig: ProverConfig;
+export let pubkeyMembershipConfig: ProverConfig;
+if (isNode) {
+  addrMembershipConfig = {
+    circuit: __dirname.concat("/../artifacts/addr_membership.circuit"),
+    witnessGenWasm: __dirname.concat("/../artifacts/addr_membership.wasm"),
+  };
+
+  pubkeyMembershipConfig = {
+    circuit: __dirname.concat("/../artifacts/pubkey_membership.circuit"),
+    witnessGenWasm: __dirname.concat("/../artifacts/pubkey_membership.wasm"),
+  };
+} else {
+  addrMembershipConfig = {
+    circuit:
+      "https://storage.googleapis.com/personae-proving-keys/membership/addr_membership.circuit",
+    witnessGenWasm:
+      "https://storage.googleapis.com/personae-proving-keys/membership/addr_membership.wasm",
+  };
+
+  pubkeyMembershipConfig = {
+    circuit:
+      "https://storage.googleapis.com/personae-proving-keys/membership/pubkey_membership.circuit",
+    witnessGenWasm:
+      "https://storage.googleapis.com/personae-proving-keys/membership/pubkey_membership.wasm",
+  };
+}
 
 export async function prove(
   args: EthereumGroupPCDArgs

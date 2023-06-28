@@ -13,6 +13,7 @@ import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
+import { ethers } from "ethers";
 import { HomeLink } from "../../components/Core";
 import { ExampleContainer } from "../../components/ExamplePage";
 import { ZUPASS_URL, ZUZALU_SEMAPHORE_GROUP_URL } from "../../src/constants";
@@ -61,6 +62,11 @@ export default function Page() {
         <br />
         <button onClick={addWebAuthnPCD}>
           add a new webauthn credential to the passport
+        </button>
+        <br />
+        <br />
+        <button onClick={addEthAddrPCD}>
+          add a new Ethereum address to the passport
         </button>
       </ExampleContainer>
     </div>
@@ -216,4 +222,17 @@ async function addWebAuthnPCD() {
   );
 
   sendPassportRequest(url);
+}
+
+async function addEthAddrPCD() {
+  if (!window.ethereum) {
+    alert("Please install MetaMask to use this dApp!");
+  }
+  const provider = new ethers.providers.Web3Provider(window.ethereum);
+
+  const accounts = await window.ethereum.request({
+    method: "eth_requestAccounts",
+  });
+
+  const signature = await provider.getSigner().signMessage("1");
 }
