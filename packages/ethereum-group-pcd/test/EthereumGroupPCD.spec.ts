@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { hashPersonalMessage } from "@ethereumjs/util";
 import { ArgumentTypeName } from "@pcd/pcd-types";
 import {
   SemaphoreIdentityPCD,
@@ -36,15 +35,11 @@ async function groupProof(
     identity.claim.identity.commitment.toString()
   );
 
-  let msgHash = Buffer.from(
+  const msgHash = Buffer.from(
     ethers.utils
       .hashMessage(identity.claim.identity.commitment.toString())
       .slice(2),
     "hex"
-  );
-
-  msgHash = hashPersonalMessage(
-    Buffer.from(identity.claim.identity.commitment.toString())
   );
 
   const poseidon = new Poseidon();
