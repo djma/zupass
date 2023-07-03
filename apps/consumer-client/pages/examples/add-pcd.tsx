@@ -1,8 +1,11 @@
+import { EthereumOwnershipPCDPackage } from "@pcd/ethereum-ownership-pcd";
 import {
   constructPassportPcdAddRequestUrl,
   constructPassportPcdProveAndAddRequestUrl,
+  openSignedZuzaluSignInPopup,
+  usePassportPopupMessages,
 } from "@pcd/passport-interface";
-import { ArgumentTypeName } from "@pcd/pcd-types";
+import { ArgumentTypeName, SerializedPCD } from "@pcd/pcd-types";
 import { SemaphoreGroupPCDPackage } from "@pcd/semaphore-group-pcd";
 import { SemaphoreIdentityPCDPackage } from "@pcd/semaphore-identity-pcd";
 import { SemaphoreSignaturePCDPackage } from "@pcd/semaphore-signature-pcd";
@@ -14,6 +17,7 @@ import {
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
 import { ethers } from "ethers";
+import { useEffect } from "react";
 import { HomeLink } from "../../components/Core";
 import { ExampleContainer } from "../../components/ExamplePage";
 import { ZUPASS_URL, ZUZALU_SEMAPHORE_GROUP_URL } from "../../src/constants";
@@ -65,11 +69,72 @@ export default function Page() {
         </button>
         <br />
         <br />
-        <button onClick={addEthAddrPCD}>
-          add a new Ethereum address to the passport
-        </button>
+        <AddEthAddrPCDButton />
       </ExampleContainer>
     </div>
+  );
+}
+
+function AddEthAddrPCDButton() {
+  const [pcdStr] = usePassportPopupMessages();
+
+  useEffect(() => {
+    if (!pcdStr) return;
+
+    const parsed = JSON.parse(pcdStr) as SerializedPCD;
+
+    const ethereum = (window as any).ethereum;
+    const provider = new ethers.providers.Web3Provider(ethereum);
+    if (!ethereum) {
+      alert("Please install MetaMask to use this dApp!");
+    }
+
+    (async function () {
+      await ethereum.request({ method: "eth_requestAccounts" });
+      const pcd = await SemaphoreSignaturePCDPackage.deserialize(parsed.pcd);
+      const signature = await provider
+        .getSigner()
+        .signMessage(pcd.claim.identityCommitment);
+
+      const popupUrl = window.location.origin + "/popup";
+
+      const proofUrl = constructPassportPcdProveAndAddRequestUrl<
+        typeof EthereumOwnershipPCDPackage
+      >(PASSPORT_URL, popupUrl, EthereumOwnershipPCDPackage.name, {
+        identity: {
+          argumentType: ArgumentTypeName.PCD,
+          pcdType: SemaphoreIdentityPCDPackage.name,
+          value: undefined,
+          userProvided: true,
+          description:
+            "The Semaphore Identity which you are signing the message.",
+        },
+        ethereumAddress: {
+          argumentType: ArgumentTypeName.String,
+          value: await provider.getSigner().getAddress(),
+        },
+        ethereumSignatureOfCommitment: {
+          argumentType: ArgumentTypeName.String,
+          value: signature,
+        },
+      });
+
+      sendPassportRequest(proofUrl);
+    })();
+  }, [pcdStr]);
+
+  return (
+    <button onClick={zupassSignIn}>
+      add a new Ethereum address to the passport
+    </button>
+  );
+}
+
+async function zupassSignIn() {
+  openSignedZuzaluSignInPopup(
+    PASSPORT_URL,
+    window.location.origin + "/popup",
+    "eth-pcd"
   );
 }
 
@@ -222,17 +287,4 @@ async function addWebAuthnPCD() {
   );
 
   sendPassportRequest(url);
-}
-
-async function addEthAddrPCD() {
-  if (!window.ethereum) {
-    alert("Please install MetaMask to use this dApp!");
-  }
-  const provider = new ethers.providers.Web3Provider(window.ethereum);
-
-  const accounts = await window.ethereum.request({
-    method: "eth_requestAccounts",
-  });
-
-  const signature = await provider.getSigner().signMessage("1");
 }
