@@ -5,17 +5,17 @@ import {
   SemaphoreIdentityPCDPackage,
   SemaphoreIdentityPCDTypeName,
 } from "@pcd/semaphore-identity-pcd";
-import { MembershipProver, Poseidon, Tree } from "@personaelabs/spartan-ecdsa";
+import { Poseidon, Tree } from "@personaelabs/spartan-ecdsa";
 import { Identity } from "@semaphore-protocol/identity";
 import assert from "assert";
 import { ethers } from "ethers";
+import JSONBig from "json-bigint";
 import "mocha";
 import * as path from "path";
 import {
   EthereumGroupPCD,
   EthereumGroupPCDPackage,
   GroupType,
-  pubkeyMembershipConfig,
 } from "../src/EthereumGroupPCD";
 
 const zkeyFilePath: string = path.join(__dirname, "../artifacts/16.zkey");
@@ -68,13 +68,11 @@ async function groupProof(
 
   // Prove membership of the prover's public key in the tree
   const merkleProof = pubKeyTree.createProof(pubKeyIndex);
-  const prover = new MembershipProver(pubkeyMembershipConfig);
-  await prover.initWasm();
-  return await prover.prove(
+  return {
     signatureOfIdentityCommitment,
     msgHash,
-    merkleProof
-  );
+    merkleProof,
+  };
 }
 
 async function happyPathEthGroupPCD() {
@@ -85,19 +83,25 @@ async function happyPathEthGroupPCD() {
     identity
   );
   const wallet = ethers.Wallet.createRandom(null);
-  const { proof, publicInput } = await groupProof(identity, wallet);
+  const { signatureOfIdentityCommitment, merkleProof } = await groupProof(
+    identity,
+    wallet
+  );
 
   const ethGroupPCD = await EthereumGroupPCDPackage.prove({
-    ethereumGroupProof: {
+    merkleProof: {
       argumentType: ArgumentTypeName.String,
-      value: Buffer.from(proof).toString("hex"),
+      value: JSONBig({ useNativeBigInt: true }).stringify(merkleProof),
     },
     identity: {
       argumentType: ArgumentTypeName.PCD,
       pcdType: SemaphoreIdentityPCDTypeName,
       value: serializedIdentity,
     },
-    publicInput: publicInput,
+    signatureOfIdentityCommitment: {
+      argumentType: ArgumentTypeName.String,
+      value: signatureOfIdentityCommitment,
+    },
     groupType: {
       argumentType: ArgumentTypeName.String,
       value: GroupType.PUBLICKEY,
@@ -151,7 +155,10 @@ describe("Ethereum Group PCD", function () {
       identity: new Identity(),
     });
     const wallet = ethers.Wallet.createRandom(null);
-    const { proof, publicInput } = await groupProof(identity1, wallet);
+    const { signatureOfIdentityCommitment, merkleProof } = await groupProof(
+      identity1,
+      wallet
+    );
 
     const identity2 = await SemaphoreIdentityPCDPackage.prove({
       identity: new Identity(),
@@ -162,19 +169,22 @@ describe("Ethereum Group PCD", function () {
 
     assert.rejects(() =>
       EthereumGroupPCDPackage.prove({
-        ethereumGroupProof: {
+        merkleProof: {
           argumentType: ArgumentTypeName.String,
-          value: Buffer.from(proof).toString("hex"),
+          value: JSONBig.stringify(merkleProof),
         },
         identity: {
           argumentType: ArgumentTypeName.PCD,
           pcdType: SemaphoreIdentityPCDTypeName,
           value: serializedIdentity2,
         },
-        publicInput: publicInput,
         groupType: {
           argumentType: ArgumentTypeName.String,
           value: GroupType.PUBLICKEY,
+        },
+        signatureOfIdentityCommitment: {
+          argumentType: ArgumentTypeName.String,
+          value: signatureOfIdentityCommitment,
         },
       })
     );
@@ -188,27 +198,32 @@ describe("Ethereum Group PCD", function () {
       identity
     );
     const wallet = ethers.Wallet.createRandom(null);
-    const { proof, publicInput } = await groupProof(identity, wallet);
+    const { merkleProof, signatureOfIdentityCommitment } = await groupProof(
+      identity,
+      wallet
+    );
 
     // Tamper with the merkle root
-    publicInput.circuitPubInput.merkleRoot =
-      publicInput.circuitPubInput.merkleRoot + BigInt(1);
+    merkleProof.root = merkleProof.root + BigInt(1);
 
     assert.rejects(() =>
       EthereumGroupPCDPackage.prove({
-        ethereumGroupProof: {
-          argumentType: ArgumentTypeName.String,
-          value: Buffer.from(proof).toString("hex"),
-        },
         identity: {
           argumentType: ArgumentTypeName.PCD,
           pcdType: SemaphoreIdentityPCDTypeName,
           value: serializedIdentity,
         },
-        publicInput: publicInput,
         groupType: {
           argumentType: ArgumentTypeName.String,
           value: GroupType.PUBLICKEY,
+        },
+        signatureOfIdentityCommitment: {
+          argumentType: ArgumentTypeName.String,
+          value: signatureOfIdentityCommitment,
+        },
+        merkleProof: {
+          argumentType: ArgumentTypeName.String,
+          value: JSONBig.stringify(merkleProof),
         },
       })
     );

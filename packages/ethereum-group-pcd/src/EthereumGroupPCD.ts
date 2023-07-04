@@ -17,6 +17,7 @@ import {
   SemaphoreSignaturePCDPackage,
 } from "@pcd/semaphore-signature-pcd";
 import {
+  MembershipProver,
   MembershipVerifier,
   ProverConfig,
   PublicInput,
@@ -65,9 +66,9 @@ export interface EthereumGroupPCDInitArgs {
 // a SemaphoreSignaturePCD is requested from a consumer application.
 export interface EthereumGroupPCDArgs {
   identity: PCDArgument<SemaphoreIdentityPCD>;
-  publicInput: PublicInput;
+  signatureOfIdentityCommitment: StringArgument;
+  merkleProof: StringArgument;
   groupType: StringArgument;
-  ethereumGroupProof: StringArgument;
 }
 
 export interface EthereumGroupPCDClaim {
@@ -151,8 +152,16 @@ export async function prove(
     throw new Error(`missing argument identity`);
   }
 
-  if (args.ethereumGroupProof.value === undefined) {
-    throw new Error(`missing argument ethereumGroupProof`);
+  // if (args.publicInput.value === undefined) {
+  //   throw new Error(`missing argument publicInput`);
+  // }
+
+  if (args.signatureOfIdentityCommitment.value === undefined) {
+    throw new Error(`missing argument signatureOfIdentityCommitment`);
+  }
+
+  if (args.merkleProof.value === undefined) {
+    throw new Error(`missing argument merkleProof`);
   }
 
   const deserializedIdentity = await SemaphoreIdentityPCDPackage.deserialize(
@@ -161,27 +170,24 @@ export async function prove(
   const message = deserializedIdentity.claim.identity.commitment.toString();
   const msgHash = ethers.utils.hashMessage(message);
 
-  const publicInputMsgHash = "0x" + args.publicInput.msgHash.toString("hex");
+  // const publicInput = PublicInput.deserialize(
+  //   new Uint8Array(Buffer.from(args.publicInput.value, "hex"))
+  // );
+
+  const prover = new MembershipProver(pubkeyMembershipConfig);
+  await prover.initWasm();
+  const { proof, publicInput } = await prover.prove(
+    args.signatureOfIdentityCommitment.value,
+    Buffer.from(msgHash.slice(2), "hex"),
+    JSONBig({ useNativeBigInt: true }).parse(args.merkleProof.value)
+  );
+
+  const publicInputMsgHash = "0x" + publicInput.msgHash.toString("hex");
 
   if (msgHash !== publicInputMsgHash) {
     throw new Error(
       `public input message hash ${publicInputMsgHash} does not match commitment ${message} hash ${msgHash} `
     );
-  }
-
-  const verifier = new MembershipVerifier(
-    args.groupType.value === GroupType.ADDRESS
-      ? addrMembershipConfig
-      : pubkeyMembershipConfig
-  );
-  await verifier.initWasm();
-  const verifies = await verifier.verify(
-    new Uint8Array(Buffer.from(args.ethereumGroupProof.value, "hex")),
-    args.publicInput.serialize()
-  );
-
-  if (!verifies) {
-    throw new Error(`membership proof failed to verify`);
   }
 
   const semaphoreSignature = await SemaphoreSignaturePCDPackage.prove({
@@ -192,14 +198,14 @@ export async function prove(
     },
     signedMessage: {
       argumentType: ArgumentTypeName.String,
-      value: args.ethereumGroupProof.value,
+      value: Buffer.from(proof).toString("hex"),
     },
   });
 
   return new EthereumGroupPCD(
     uuid(),
     {
-      publicInput: args.publicInput,
+      publicInput: publicInput,
       groupType:
         args.groupType.value === "address"
           ? GroupType.ADDRESS
@@ -209,7 +215,7 @@ export async function prove(
       signatureProof: await SemaphoreSignaturePCDPackage.serialize(
         semaphoreSignature
       ),
-      ethereumGroupProof: args.ethereumGroupProof.value,
+      ethereumGroupProof: Buffer.from(proof).toString("hex"),
     }
   );
 }
