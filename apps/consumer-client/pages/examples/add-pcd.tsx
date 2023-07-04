@@ -1,8 +1,4 @@
-import {
-  EthereumGroupPCDPackage,
-  GroupType,
-  pubkeyMembershipConfig,
-} from "@pcd/ethereum-group-pcd";
+import { EthereumGroupPCDPackage, GroupType } from "@pcd/ethereum-group-pcd";
 import { EthereumOwnershipPCDPackage } from "@pcd/ethereum-ownership-pcd";
 import {
   constructPassportPcdAddRequestUrl,
@@ -15,7 +11,7 @@ import { SemaphoreGroupPCDPackage } from "@pcd/semaphore-group-pcd";
 import { SemaphoreIdentityPCDPackage } from "@pcd/semaphore-identity-pcd";
 import { SemaphoreSignaturePCDPackage } from "@pcd/semaphore-signature-pcd";
 import { WebAuthnPCDPackage } from "@pcd/webauthn-pcd";
-import { MembershipProver, Poseidon, Tree } from "@personaelabs/spartan-ecdsa";
+import { Poseidon, Tree } from "@personaelabs/spartan-ecdsa";
 import { Identity } from "@semaphore-protocol/identity";
 import { startRegistration } from "@simplewebauthn/browser";
 import {
@@ -220,8 +216,6 @@ function AddEthGroupPCDButton() {
 
       // Prove membership of the prover's public key in the tree
       const merkleProof = pubKeyTree.createProof(pubKeyIndex);
-      const prover = new MembershipProver(pubkeyMembershipConfig);
-      await prover.initWasm();
 
       const popupUrl = window.location.origin + "/popup";
       const proofUrl = constructPassportPcdProveAndAddRequestUrl<
@@ -248,8 +242,6 @@ function AddEthGroupPCDButton() {
           value: JSONBig({ useNativeBigInt: true }).stringify(merkleProof),
         },
       });
-
-      console.log(proofUrl);
 
       sendPassportRequest(proofUrl);
     })();
