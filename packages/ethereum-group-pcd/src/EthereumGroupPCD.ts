@@ -152,10 +152,6 @@ export async function prove(
     throw new Error(`missing argument identity`);
   }
 
-  // if (args.publicInput.value === undefined) {
-  //   throw new Error(`missing argument publicInput`);
-  // }
-
   if (args.signatureOfIdentityCommitment.value === undefined) {
     throw new Error(`missing argument signatureOfIdentityCommitment`);
   }
@@ -169,10 +165,6 @@ export async function prove(
   );
   const message = deserializedIdentity.claim.identity.commitment.toString();
   const msgHash = ethers.utils.hashMessage(message);
-
-  // const publicInput = PublicInput.deserialize(
-  //   new Uint8Array(Buffer.from(args.publicInput.value, "hex"))
-  // );
 
   const prover = new MembershipProver(pubkeyMembershipConfig);
   await prover.initWasm();
